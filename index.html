@@ -72,7 +72,15 @@
         const data = await res.json();
         document.getElementById('status').innerText =
           `Time: ${data.time} | Mode: ${data.mode} | Feeder: ${data.feeder}`;
-        document.getElementById('manualBtn').disabled = (data.mode === 'auto');
+    
+        const btn = document.getElementById('manualBtn');
+        if (data.mode === 'auto') {
+          btn.disabled = true;
+          btn.innerText = 'Open/Close Feeder';
+        } else {
+          btn.disabled = false;
+          btn.innerText = (data.feeder === 'open') ? 'Close Feeder' : 'Open Feeder';
+        }
       } catch (err) {
         document.getElementById('status').innerText = "Error loading status";
       }
