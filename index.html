@@ -8,6 +8,30 @@
     h2 { margin-bottom: 10px; }
     button { margin: 5px; padding: 10px 20px; font-size: 16px; }
     input[type="time"] { padding: 5px; margin-right: 10px; }
+
+    table {
+      width: 300px;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    .delete-btn {
+      background-color: red;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -21,24 +45,37 @@
 
   <hr>
   <h3>Scheduled Feeding</h3>
+
   <form onsubmit="addSchedule(event)">
     <input type="time" id="scheduleTime" required>
     <button type="submit">Add Schedule</button>
   </form>
 
-  <ul id="scheduleList"></ul>
+  <table>
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="scheduleTableBody">
+      <!-- Rows inserted here -->
+    </tbody>
+  </table>
 
   <script>
-    const apiBase = 'https://feeder-backend-production.up.railway.app/'; // Replace with Railway URL
+    const apiBase = 'https://feeder-backend-production.up.railway.app/api';
 
     async function fetchStatus() {
-      const res = await fetch(`${apiBase}/status`);
-      const data = await res.json();
-
-      document.getElementById('status').innerText =
-        `Time: ${data.time} | Mode: ${data.mode} | Feeder: ${data.feeder}`;
-
-      document.getElementById('manualBtn').disabled = (data.mode === 'auto');
+      try {
+        const res = await fetch(`${apiBase}/status`);
+        const data = await res.json();
+        document.getElementById('status').innerText =
+          `Time: ${data.time} | Mode: ${data.mode} | Feeder: ${data.feeder}`;
+        document.getElementById('manualBtn').disabled = (data.mode === 'auto');
+      } catch (err) {
+        document.getElementById('status').innerText = "Error loading status";
+      }
     }
 
     async function toggleMode() {
@@ -54,33 +91,56 @@
     async function fetchSchedules() {
       const res = await fetch(`${apiBase}/schedules`);
       const schedules = await res.json();
-      const list = document.getElementById('scheduleList');
-      list.innerHTML = '';
+      const tbody = document.getElementById('scheduleTableBody');
+      tbody.innerHTML = '';
+
       schedules.forEach(s => {
+        const row = document.createElement('tr');
+
         const timeStr = `${String(s.hour).padStart(2, '0')}:${String(s.minute).padStart(2, '0')}`;
-        const li = document.createElement('li');
-        li.textContent = timeStr;
-        list.appendChild(li);
+        const timeCell = document.createElement('td');
+        timeCell.textContent = timeStr;
+
+        const actionCell = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.onclick = () => deleteSchedule(s._id);
+
+        actionCell.appendChild(deleteBtn);
+        row.appendChild(timeCell);
+        row.appendChild(actionCell);
+
+        tbody.appendChild(row);
       });
     }
 
     async function addSchedule(e) {
       e.preventDefault();
       const time = document.getElementById('scheduleTime').value;
+      const [hourStr, minuteStr] = time.split(':');
+      const hour = parseInt(hourStr);
+      const minute = parseInt(minuteStr);
+
       await fetch(`${apiBase}/schedules`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ time })
+        body: JSON.stringify({ hour, minute })
       });
+
       document.getElementById('scheduleTime').value = '';
       fetchSchedules();
     }
 
-    // Initial load
+    async function deleteSchedule(id) {
+      await fetch(`${apiBase}/schedules/${id}`, { method: 'DELETE' });
+      fetchSchedules();
+    }
+
+    // Load everything initially
     fetchStatus();
     fetchSchedules();
-    setInterval(fetchStatus, 60000); // Update status every minute
+    setInterval(fetchStatus, 60000); // Update status every 60s
   </script>
 </body>
 </html>
-
